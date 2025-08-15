@@ -1,0 +1,1537 @@
+<!--
+
+How to run
+
+- Option 1: Double-cliquer sur ce fichier (certains navigateurs bloquent les imports ESModules en file://).
+
+- Option 2 (recommandé) : dans ce dossier, lancez un serveur local :
+
+    npm i -g http-server
+
+    npx http-server .
+
+  puis ouvrez l’URL indiquée (ex: http://127.0.0.1:8080).
+
+
+
+Touches (AZERTY & QWERTY)
+
+- Déplacement : ZQSD / WASD / Flèches
+
+- Souris : Maintenir clic droit pour orienter la caméra
+
+- Saut : Espace
+
+- Sprint : Shift
+
+- Pause : Échap ou P
+
+- Debug : F1 (grille, bounding boxes, sliders)
+
+- Recentre caméra : R
+
+
+
+Paramètres tunables (par défaut)
+
+- Gravité : 9.81
+
+- Vitesse marche : 4.0 m/s
+
+- Vitesse sprint : 7.2 m/s
+
+- Accélération : 30.0
+
+- Freinage (damping) : 12.0
+
+- Hauteur saut : 1.0 m (calculée → vitesse verticale)
+
+- Hauteur step offset (franchissement trottoir) : 0.25 m
+
+- Pente max : 40°
+
+- Longueur bras de caméra (spring arm) : 5.5 m, hauteur 2.2 m
+
+- Coyote time (tolérance saut après bord) : 100 ms
+
+
+
+Prochaines features (idées)
+
+- Voiture “drivable” low-poly
+
+- PNJ qui marchent (éviter le joueur)
+
+- Checkpoints & mini-défis de parkour
+
+-->
+
+
+
+<!doctype html>
+
+<html lang="fr">
+
+<head>
+
+  <meta charset="utf-8" />
+
+  <title>GTA-like 10% — WebGL (three.js + cannon-es)</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+
+    html, body { margin:0; padding:0; height:100%; background:#0b0e12; overflow:hidden; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;}
+
+    #overlay {
+
+      position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none;
+
+    }
+
+    #hud {
+
+      position: fixed; left: 12px; top: 12px; color: #dfe7ff; font-size: 14px; line-height: 1.35; text-shadow: 0 1px 0 rgba(0,0,0,.45);
+
+      background: rgba(10,14,22,.35); border: 1px solid rgba(255,255,255,.08); border-radius: 8px; padding: 10px 12px; backdrop-filter: blur(4px);
+
+      pointer-events: none;
+
+    }
+
+    #fps {
+
+      position: fixed; right: 12px; top: 12px; color:#dfe7ff; font-size:13px; background: rgba(10,14,22,.35);
+
+      border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:8px 10px; text-align:right; min-width: 72px;
+
+      pointer-events: none;
+
+    }
+
+    #paused {
+
+      position: fixed; inset: 0; display:none; align-items:center; justify-content:center; background: rgba(0,0,0,.45); color:#fff;
+
+      font-size: 24px; letter-spacing:.5px; text-shadow:0 2px 8px rgba(0,0,0,.8);
+
+    }
+
+    #debugPanel {
+
+      position: fixed; left: 12px; bottom: 12px; width: 280px; background: rgba(18,24,34,.85); color:#e9f0ff; border:1px solid rgba(255,255,255,.1);
+
+      border-radius: 12px; padding: 10px 12px; display:none; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+
+    }
+
+    #debugPanel h3 { margin:6px 0 8px; font-size:14px; opacity:.9; }
+
+    #debugPanel label { display:flex; align-items:center; gap:8px; margin:7px 0; font-size:12px; opacity:.95;}
+
+    #debugPanel input[type="range"] { flex:1; }
+
+    #helpKeys { font-size:12px; opacity:.85; margin-top:6px; }
+
+    canvas { display:block; }
+
+    /* Mini-map frame overlay (drawn via scissor) */
+
+    #miniFrame {
+
+      position: fixed; right: 12px; top: 64px; width: 200px; height: 200px; border-radius: 10px;
+
+      outline: 1px solid rgba(255,255,255,.15); box-shadow: 0 8px 18px rgba(0,0,0,.25); pointer-events:none;
+
+    }
+
+    #note { position: fixed; right: 12px; bottom: 12px; color:#9fb4ff; font-size:11px; opacity:.75;}
+
+  </style>
+
+</head>
+
+<body>
+
+  <div id="hud">
+
+    <div><strong>Contrôles</strong> : ZQSD/WASD/Flèches · Espace=Jump · Shift=Sprint · Clic droit=Caméra · Esc/P=Pause · F1=Debug</div>
+
+    <div id="helpKeys" aria-hidden="true">Astuce : R pour recentrer la caméra derrière le joueur.</div>
+
+  </div>
+
+  <div id="fps">FPS: --</div>
+
+  <div id="paused">⏸️ Pause</div>
+
+  <div id="miniFrame" aria-hidden="true"></div>
+
+  <div id="debugPanel" role="dialog" aria-label="Panneau debug">
+
+    <h3>Debug</h3>
+
+    <label>Vitesse marche <input id="walkSpeed" type="range" min="2" max="8" step="0.1"></label>
+
+    <label>Vitesse sprint <input id="sprintSpeed" type="range" min="4" max="12" step="0.1"></label>
+
+    <label>Accélération <input id="accel" type="range" min="10" max="60" step="1"></label>
+
+    <label>Damping <input id="damping" type="range" min="4" max="30" step="1"></label>
+
+    <label>Gravité <input id="gravity" type="range" min="2" max="20" step="0.1"></label>
+
+    <label>Friction sol <input id="friction" type="range" min="0" max="1" step="0.05"></label>
+
+    <label>Pente max (°) <input id="slope" type="range" min="10" max="60" step="1"></label>
+
+    <div style="margin-top:8px; display:flex; gap:6px;">
+
+      <button id="toggleGrid">Grille</button>
+
+      <button id="toggleBBox">Bounding</button>
+
+      <button id="resetCam">Reset cam</button>
+
+    </div>
+
+  </div>
+
+  <div id="overlay" aria-hidden="true"></div>
+
+  <div id="note">Cycle jour/nuit actif ✦</div>
+
+
+
+  <script type="module">
+
+    // ===== Imports =====
+
+    import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
+
+    import { BufferGeometryUtils } from 'https://unpkg.com/three@0.161.0/examples/jsm/utils/BufferGeometryUtils.js';
+
+    import * as CANNON from 'https://cdn.skypack.dev/cannon-es';
+
+
+
+    // ======= Globals / Params =======
+
+    const params = {
+
+      gravity: 9.81,
+
+      walkSpeed: 4.0,
+
+      sprintSpeed: 7.2,
+
+      accel: 30.0,
+
+      damping: 12.0,
+
+      jumpHeight: 1.0,
+
+      stepHeight: 0.25,
+
+      maxSlopeDeg: 40,
+
+      cameraArmLen: 5.5,
+
+      cameraArmHeight: 2.2,
+
+      camLerp: 0.12,
+
+      camRotLerp: 0.15,
+
+      coyoteMs: 100,
+
+      miniSize: 200,
+
+      roadWidth: 8,
+
+      sidewalkH: 0.18,
+
+      paused: false,
+
+      debug: false,
+
+      showGrid: false,
+
+      showBBox: false,
+
+    };
+
+
+
+    // ======= Renderer & Scene Setup =======
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    renderer.setClearColor(0x0b0e12, 1);
+
+    renderer.autoClear = false; // for mini-map second pass
+
+    document.body.appendChild(renderer.domElement);
+
+
+
+    const scene = new THREE.Scene();
+
+    scene.fog = new THREE.Fog(0x0b0e12, 60, 220);
+
+
+
+    // Camera (main)
+
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
+
+    camera.position.set(0, 2, 6);
+
+
+
+    // Camera (mini-map top-down ortho)
+
+    const miniCamSize = 60;
+
+    const miniCam = new THREE.OrthographicCamera(-miniCamSize, miniCamSize, miniCamSize, -miniCamSize, 0.1, 500);
+
+    miniCam.up.set(0,0,-1); // north-up feel
+
+    miniCam.lookAt(0,-1,0);
+
+
+
+    // Lights & day/night
+
+    const hemi = new THREE.HemisphereLight(0xbfd7ff, 0x223344, 0.45);
+
+    scene.add(hemi);
+
+
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+
+    dirLight.position.set(40, 80, 40);
+
+    scene.add(dirLight);
+
+
+
+    // ======= Physics World =======
+
+    const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -params.gravity, 0) });
+
+    world.broadphase = new CANNON.SAPBroadphase(world);
+
+    world.allowSleep = true;
+
+
+
+    const defaultMat = new CANNON.Material('default');
+
+    const groundMat = new CANNON.Material('ground');
+
+    const contactMat = new CANNON.ContactMaterial(defaultMat, groundMat, { friction: 0.3, restitution: 0.0 });
+
+    world.addContactMaterial(contactMat);
+
+    world.defaultContactMaterial.friction = 0.25;
+
+
+
+    // ======= Helpers =======
+
+    const grid = new THREE.GridHelper(300, 60, 0x334, 0x223);
+
+    grid.visible = false;
+
+    scene.add(grid);
+
+
+
+    const bboxHelpers = [];
+
+    const addBBoxHelper = (mesh) => {
+
+      const box = new THREE.Box3().setFromObject(mesh);
+
+      const size = new THREE.Vector3(); box.getSize(size);
+
+      const center = new THREE.Vector3(); box.getCenter(center);
+
+      const g = new THREE.BoxGeometry(size.x, size.y, size.z);
+
+      const e = new THREE.EdgesGeometry(g);
+
+      const w = new THREE.LineSegments(e, new THREE.LineBasicMaterial({ color: 0x77aaff }));
+
+      w.position.copy(center);
+
+      w.visible = params.showBBox;
+
+      bboxHelpers.push({ mesh, helper: w });
+
+      scene.add(w);
+
+    };
+
+
+
+    // ======= Materials =======
+
+    const MAT = {
+
+      ground: new THREE.MeshLambertMaterial({ color: 0x254155 }),
+
+      road:   new THREE.MeshLambertMaterial({ color: 0x2a2f35 }),
+
+      side:   new THREE.MeshLambertMaterial({ color: 0x707780 }),
+
+      buildingA: new THREE.MeshLambertMaterial({ color: 0x536b8a }),
+
+      buildingB: new THREE.MeshLambertMaterial({ color: 0x3f5a78 }),
+
+      park:   new THREE.MeshLambertMaterial({ color: 0x2e5a3a }),
+
+      ramp:   new THREE.MeshLambertMaterial({ color: 0x4b4f57 }),
+
+      player: new THREE.MeshStandardMaterial({ color: 0xf1bd5a, roughness: 0.8, metalness: 0.1 }),
+
+      playerHead: new THREE.MeshStandardMaterial({ color: 0x2b2f38, roughness: 0.9, metalness: 0.0 }),
+
+      props:  new THREE.MeshLambertMaterial({ color: 0x8aa4c2 }),
+
+    };
+
+
+
+    // ======= City Generation (low-poly) =======
+
+    const colliders = []; // Three meshes for camera raycast
+
+    const bodies = [];    // Cannon bodies for debug toggles
+
+
+
+    // Ground
+
+    const groundG = new THREE.BoxGeometry(300, 1, 300);
+
+    const groundM = MAT.ground;
+
+    const ground = new THREE.Mesh(groundG, groundM);
+
+    ground.position.y = -0.5;
+
+    ground.receiveShadow = false; scene.add(ground); addBBoxHelper(ground);
+
+    colliders.push(ground);
+
+    const groundShape = new CANNON.Box(new CANNON.Vec3(150, 0.5, 150));
+
+    const groundBody = new CANNON.Body({ mass: 0, shape: groundShape, material: groundMat });
+
+    groundBody.position.set(0, -0.5, 0); world.addBody(groundBody); bodies.push(groundBody);
+
+
+
+    // Roads grid + sidewalks
+
+    const roadZ = [-40, 0, 40];
+
+    const roadX = [-40, 0, 40];
+
+    const makeRoad = (x, z, len=120, wid=params.roadWidth) => {
+
+      const g = new THREE.BoxGeometry(wid, 0.08, len);
+
+      const m = MAT.road;
+
+      const mesh = new THREE.Mesh(g, m);
+
+      mesh.position.set(x, 0.04, z);
+
+      scene.add(mesh); colliders.push(mesh); addBBoxHelper(mesh);
+
+      const shape = new CANNON.Box(new CANNON.Vec3(wid*0.5, 0.04, len*0.5));
+
+      const body = new CANNON.Body({ mass: 0, shape, material: groundMat });
+
+      body.position.set(x, 0.04, z); world.addBody(body); bodies.push(body);
+
+
+
+      // sidewalks (left/right or top/bottom)
+
+      const sH = params.sidewalkH, sW = 2;
+
+      if (len > wid) {
+
+        // along Z → sidewalks on X sides
+
+        [[x - wid/2 - sW/2, z], [x + wid/2 + sW/2, z]].forEach(([sx, sz])=>{
+
+          const sg = new THREE.BoxGeometry(sW, sH, len);
+
+          const sm = MAT.side;
+
+          const s = new THREE.Mesh(sg, sm);
+
+          s.position.set(sx, sH/2, sz);
+
+          scene.add(s); colliders.push(s); addBBoxHelper(s);
+
+          const sshp = new CANNON.Box(new CANNON.Vec3(sW*0.5, sH*0.5, len*0.5));
+
+          const sb = new CANNON.Body({ mass:0, shape:sshp, material: groundMat });
+
+          sb.position.set(sx, sH/2, sz); world.addBody(sb); bodies.push(sb);
+
+        });
+
+      } else {
+
+        // along X → sidewalks on Z sides
+
+        [[x, z - wid/2 - sW/2], [x, z + wid/2 + sW/2]].forEach(([sx, sz])=>{
+
+          const sg = new THREE.BoxGeometry(len, sH, sW);
+
+          const sm = MAT.side;
+
+          const s = new THREE.Mesh(sg, sm);
+
+          s.position.set(sx, sH/2, sz);
+
+          scene.add(s); colliders.push(s); addBBoxHelper(s);
+
+          const sshp = new CANNON.Box(new CANNON.Vec3(len*0.5, sH*0.5, sW*0.5));
+
+          const sb = new CANNON.Body({ mass:0, shape:sshp, material: groundMat });
+
+          sb.position.set(sx, sH/2, sz); world.addBody(sb); bodies.push(sb);
+
+        });
+
+      }
+
+    };
+
+    roadZ.forEach(z => makeRoad(0, z, 120, params.roadWidth)); // long north-south
+
+    roadX.forEach(x => makeRoad(x, 0, 120, params.roadWidth)); // long east-west (rotated by swapping args)
+
+
+
+    // Park
+
+    const park = new THREE.Mesh(new THREE.BoxGeometry(36, 0.12, 28), MAT.park);
+
+    park.position.set(-35, 0.06, 35); scene.add(park); colliders.push(park); addBBoxHelper(park);
+
+    const parkB = new CANNON.Body({ mass:0, shape:new CANNON.Box(new CANNON.Vec3(18, 0.06, 14)), material: groundMat });
+
+    parkB.position.set(-35, 0.06, 35); world.addBody(parkB); bodies.push(parkB);
+
+
+
+    // Ramp
+
+    const rampLen=10, rampH=2, rampW=6;
+
+    const rampGeo = new THREE.BufferGeometry();
+
+    {
+
+      // Simple wedge ramp
+
+      const vertices = new Float32Array([
+
+        // base rectangle (y=0)
+
+        -rampW/2,0,-rampLen/2,   rampW/2,0,-rampLen/2,   rampW/2,0, rampLen/2,
+
+        -rampW/2,0,-rampLen/2,   rampW/2,0, rampLen/2,  -rampW/2,0, rampLen/2,
+
+        // back rectangle (vertical face at -len/2)
+
+        -rampW/2,0,-rampLen/2,   rampW/2,0,-rampLen/2,   rampW/2,rampH,-rampLen/2,
+
+        -rampW/2,0,-rampLen/2,   rampW/2,rampH,-rampLen/2, -rampW/2,rampH,-rampLen/2,
+
+        // top slope
+
+        -rampW/2,rampH,-rampLen/2,  rampW/2,rampH,-rampLen/2,   rampW/2,0, rampLen/2,
+
+        -rampW/2,rampH,-rampLen/2,   rampW/2,0, rampLen/2,     -rampW/2,0, rampLen/2,
+
+        // sides
+
+        -rampW/2,0,-rampLen/2,  -rampW/2,0, rampLen/2,  -rampW/2,rampH,-rampLen/2,
+
+         rampW/2,0,-rampLen/2,   rampW/2,rampH,-rampLen/2,  rampW/2,0, rampLen/2,
+
+      ]);
+
+      const geom = new THREE.BufferGeometry();
+
+      geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+
+      geom.computeVertexNormals();
+
+      rampGeo.copy(geom);
+
+    }
+
+    const rampMesh = new THREE.Mesh(rampGeo, MAT.ramp);
+
+    rampMesh.position.set(18, 0, -18);
+
+    scene.add(rampMesh); colliders.push(rampMesh); addBBoxHelper(rampMesh);
+
+    // Physics for ramp: use a static Trimesh (approx)
+
+    const rampTris = rampGeo.attributes.position.array;
+
+    const rampIndices = [...Array(rampTris.length/3).keys()];
+
+    const rampCShape = createTrimeshFromTHREE(rampGeo);
+
+    const rampBody = new CANNON.Body({ mass:0, shape:rampCShape, material: groundMat });
+
+    rampBody.position.set(18,0,-18); world.addBody(rampBody); bodies.push(rampBody);
+
+
+
+    // Buildings (4–6)
+
+    const buildingDefs = [
+
+      { pos:[-25,0,-25], size:[10,16,10], mat: MAT.buildingA },
+
+      { pos:[ 30,0,-10], size:[14,22,12], mat: MAT.buildingB },
+
+      { pos:[-10,0, 22], size:[12,18,12], mat: MAT.buildingA },
+
+      { pos:[ 22,0, 25], size:[10,14,10], mat: MAT.buildingB },
+
+      { pos:[-40,0,  0], size:[12,24,10], mat: MAT.buildingB },
+
+      { pos:[  8,0,-32], size:[16,20,12], mat: MAT.buildingA },
+
+    ];
+
+    buildingDefs.forEach(b=>{
+
+      const m = new THREE.Mesh(new THREE.BoxGeometry(b.size[0], b.size[1], b.size[2]), b.mat);
+
+      m.position.set(b.pos[0], b.size[1]/2, b.pos[2]);
+
+      scene.add(m); colliders.push(m); addBBoxHelper(m);
+
+
+
+      const sh = new CANNON.Box(new CANNON.Vec3(b.size[0]/2, b.size[1]/2, b.size[2]/2));
+
+      const body = new CANNON.Body({ mass: 0, shape: sh, material: groundMat });
+
+      body.position.set(b.pos[0], b.size[1]/2, b.pos[2]);
+
+      world.addBody(body); bodies.push(body);
+
+    });
+
+
+
+    // Street props: low bollards to practice "step offset"
+
+    for (let i=0;i<8;i++){
+
+      const boll = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.45,12), MAT.props);
+
+      const x = -6 + i*1.6, z = 8;
+
+      boll.position.set(x, 0.225, z); scene.add(boll); colliders.push(boll); addBBoxHelper(boll);
+
+      const bshape = new CANNON.Cylinder(0.18,0.18,0.45,12);
+
+      const body = new CANNON.Body({ mass:0, material: groundMat });
+
+      body.addShape(bshape);
+
+      body.position.set(x, 0.225, z); world.addBody(body); bodies.push(body);
+
+    }
+
+
+
+    // ======= Player (capsule + simple "robot" mesh) =======
+
+    const player = createPlayer();
+
+    scene.add(player.mesh); world.addBody(player.body);
+
+
+
+    // ======= Camera Follow ("spring arm" with collision) =======
+
+    const raycaster = new THREE.Raycaster();
+
+    const camState = { yaw: 0, pitch: 0.12, mouseDown: false };
+
+
+
+    // ======= HUD / FPS =======
+
+    const fpsEl = document.getElementById('fps');
+
+    let fpsAcc=0, fpsCount=0, fpsTime=0;
+
+
+
+    // ======= Input =======
+
+    const input = {
+
+      fwd:false, back:false, left:false, right:false,
+
+      run:false, jump:false, mouseDX:0, mouseDY:0, wantCenter:false,
+
+    };
+
+    const keyMap = {
+
+      'KeyW':'fwd','ArrowUp':'fwd','KeyZ':'fwd',
+
+      'KeyS':'back','ArrowDown':'back',
+
+      'KeyA':'left','ArrowLeft':'left','KeyQ':'left',
+
+      'KeyD':'right','ArrowRight':'right',
+
+      'ShiftLeft':'run','ShiftRight':'run',
+
+      'Space':'jump',
+
+    };
+
+    window.addEventListener('keydown', e=>{
+
+      if (e.code==='Escape' || e.code==='KeyP'){ togglePause(); return; }
+
+      if (e.code==='F1'){ e.preventDefault(); toggleDebug(); return; }
+
+      if (e.code==='KeyR'){ input.wantCenter = true; }
+
+      if (keyMap[e.code]!==undefined){ input[keyMap[e.code]] = true; }
+
+    });
+
+    window.addEventListener('keyup', e=>{
+
+      if (keyMap[e.code]!==undefined){ input[keyMap[e.code]] = false; }
+
+      if (e.code==='Space') input.jump = false;
+
+    });
+
+    renderer.domElement.addEventListener('contextmenu', e=>e.preventDefault());
+
+    renderer.domElement.addEventListener('mousedown', e=>{
+
+      if (e.button===2){ camState.mouseDown = true; }
+
+    });
+
+    window.addEventListener('mouseup', e=>{
+
+      if (e.button===2){ camState.mouseDown = false; }
+
+    });
+
+    window.addEventListener('mousemove', e=>{
+
+      if (camState.mouseDown){
+
+        camState.yaw -= e.movementX * 0.0022;
+
+        camState.pitch -= e.movementY * 0.0016;
+
+        camState.pitch = THREE.MathUtils.clamp(camState.pitch, -0.35, 0.6);
+
+      }
+
+    });
+
+
+
+    // ======= WebAudio (procedural footsteps & jump) =======
+
+    const audio = {
+
+      ctx: null, lastStep: 0, stepIntervalWalk: 0.42, stepIntervalRun: 0.28
+
+    };
+
+    function ensureAudio(){
+
+      if (!audio.ctx){
+
+        audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+      }
+
+    }
+
+    function playStep(){
+
+      if (!audio.ctx) return;
+
+      const t = audio.ctx.currentTime;
+
+      const osc = audio.ctx.createOscillator();
+
+      const gain = audio.ctx.createGain();
+
+      osc.type = 'triangle';
+
+      osc.frequency.setValueAtTime(180, t);
+
+      osc.frequency.exponentialRampToValueAtTime(90, t+0.06);
+
+      gain.gain.setValueAtTime(0.0, t);
+
+      gain.gain.linearRampToValueAtTime(0.12, t+0.005);
+
+      gain.gain.exponentialRampToValueAtTime(0.0001, t+0.09);
+
+      osc.connect(gain).connect(audio.ctx.destination);
+
+      osc.start(t); osc.stop(t+0.1);
+
+    }
+
+    function playJump(){
+
+      if (!audio.ctx) return;
+
+      const t = audio.ctx.currentTime;
+
+      const osc = audio.ctx.createOscillator();
+
+      const gain = audio.ctx.createGain();
+
+      osc.type='sine';
+
+      osc.frequency.setValueAtTime(320, t);
+
+      osc.frequency.exponentialRampToValueAtTime(120, t+0.12);
+
+      gain.gain.setValueAtTime(0.0, t);
+
+      gain.gain.linearRampToValueAtTime(0.18, t+0.01);
+
+      gain.gain.exponentialRampToValueAtTime(0.0001, t+0.13);
+
+      osc.connect(gain).connect(audio.ctx.destination);
+
+      osc.start(t); osc.stop(t+0.14);
+
+    }
+
+    window.addEventListener('pointerdown', ensureAudio, { once:true });
+
+
+
+    // ======= Pause / Debug UI =======
+
+    const pausedEl = document.getElementById('paused');
+
+    function togglePause(){
+
+      params.paused = !params.paused;
+
+      pausedEl.style.display = params.paused ? 'flex' : 'none';
+
+    }
+
+    function toggleDebug(){
+
+      params.debug = !params.debug;
+
+      document.getElementById('debugPanel').style.display = params.debug ? 'block' : 'none';
+
+      grid.visible = params.showGrid;
+
+      bboxHelpers.forEach(h=>h.helper.visible = params.showBBox);
+
+    }
+
+    document.addEventListener('visibilitychange', ()=>{
+
+      if (document.hidden) { params.paused = true; pausedEl.style.display='flex'; }
+
+    });
+
+
+
+    // Debug sliders
+
+    const bindRange = (id, key, factor=1, inverse=false) => {
+
+      const el = document.getElementById(id);
+
+      const setFromParam = ()=> el.value = params[key] * factor;
+
+      setFromParam();
+
+      el.addEventListener('input', ()=>{
+
+        params[key] = parseFloat(el.value) / factor;
+
+        if (key==='gravity'){ world.gravity.set(0, -params.gravity, 0); }
+
+      });
+
+    };
+
+    bindRange('walkSpeed','walkSpeed');
+
+    bindRange('sprintSpeed','sprintSpeed');
+
+    bindRange('accel','accel');
+
+    bindRange('damping','damping');
+
+    bindRange('gravity','gravity');
+
+    bindRange('friction','friction');
+
+    bindRange('slope','maxSlopeDeg');
+
+
+
+    document.getElementById('toggleGrid').onclick = ()=>{
+
+      params.showGrid = !params.showGrid; grid.visible = params.showGrid;
+
+    };
+
+    document.getElementById('toggleBBox').onclick = ()=>{
+
+      params.showBBox = !params.showBBox; bboxHelpers.forEach(h=>h.helper.visible = params.showBBox);
+
+    };
+
+    document.getElementById('resetCam').onclick = ()=>{ camState.yaw = 0; camState.pitch = 0.12; };
+
+
+
+    // ======= Game Loop =======
+
+    let last = performance.now();
+
+    let accumulator = 0;
+
+    const fixed = 1/90;
+
+
+
+    function animate(now){
+
+      requestAnimationFrame(animate);
+
+      const dt = Math.min((now - last)/1000, 0.05);
+
+      last = now;
+
+
+
+      // Day/Night cycle (very slow)
+
+      const t = now * 0.00002;
+
+      hemi.intensity = 0.35 + 0.2*Math.sin(t*2*Math.PI);
+
+      dirLight.intensity = 0.55 + 0.25*Math.max(0, Math.sin(t*2*Math.PI));
+
+      dirLight.position.set(60*Math.cos(t*2*Math.PI), 80*Math.max(0.2, Math.sin(t*2*Math.PI)), 60*Math.sin(t*2*Math.PI));
+
+
+
+      if (!params.paused){
+
+        // Physics fixed-step
+
+        accumulator += dt;
+
+        const substeps = 3;
+
+        while (accumulator >= fixed){
+
+          stepGame(fixed);
+
+          world.step(fixed, fixed, substeps);
+
+          accumulator -= fixed;
+
+        }
+
+      }
+
+
+
+      // Camera follow
+
+      updateCamera(dt);
+
+
+
+      // Render main
+
+      renderer.setViewport(0,0,window.innerWidth, window.innerHeight);
+
+      renderer.setScissorTest(false);
+
+      renderer.clear();
+
+      renderer.render(scene, camera);
+
+
+
+      // Render mini-map in a scissored viewport (top-right)
+
+      const miniW = params.miniSize, miniH = params.miniSize;
+
+      const x = window.innerWidth - miniW - 12; // match CSS frame
+
+      const y = window.innerHeight - (window.innerHeight - 64) - 64; // top offset 64
+
+      renderer.setViewport(x, window.innerHeight-64-miniH, miniW, miniH);
+
+      renderer.setScissor(x, window.innerHeight-64-miniH, miniW, miniH);
+
+      renderer.setScissorTest(true);
+
+      // position mini-cam over player
+
+      const p = player.body.position;
+
+      miniCam.position.set(p.x, 120, p.z);
+
+      miniCam.lookAt(p.x, 0, p.z);
+
+      renderer.render(scene, miniCam);
+
+      renderer.setScissorTest(false);
+
+
+
+      // FPS
+
+      fpsTime += dt; fpsAcc += 1; 
+
+      if (fpsTime >= 0.25){ 
+
+        const fps = Math.round(fpsAcc / fpsTime);
+
+        fpsEl.textContent = `FPS: ${fps}`;
+
+        fpsTime = 0; fpsAcc = 0;
+
+      }
+
+    }
+
+    requestAnimationFrame(animate);
+
+
+
+    // ======= Core Gameplay Step =======
+
+    let lastGroundedTime = 0;
+
+    function stepGame(dt){
+
+      // Ground check via raycast
+
+      const footPos = new CANNON.Vec3(player.body.position.x, player.body.position.y - player.halfHeight, player.body.position.z);
+
+      const down = new CANNON.Vec3(0, -1, 0);
+
+      const ray = new CANNON.Ray(footPos, down);
+
+      ray._updateDirection(); // internal
+
+      ray.length = 0.3;
+
+      const result = new CANNON.RaycastResult();
+
+      let isGrounded = false, groundNormal = new CANNON.Vec3(0,1,0);
+
+      ray.intersectWorld(world, {
+
+        collisionFilterMask: -1, collisionFilterGroup: -1, skipBackfaces: true,
+
+        mode: CANNON.Ray.ANY
+
+      }, result);
+
+      if (result.hasHit){
+
+        isGrounded = true;
+
+        groundNormal.copy(result.hitNormalWorld);
+
+        lastGroundedTime = performance.now();
+
+      }
+
+
+
+      // Inputs → desired velocity in camera space
+
+      let dirX = 0, dirZ = 0;
+
+      if (input.fwd) dirZ -= 1;
+
+      if (input.back) dirZ += 1;
+
+      if (input.left) dirX -= 1;
+
+      if (input.right) dirX += 1;
+
+      const l = Math.hypot(dirX, dirZ);
+
+      if (l>0){ dirX/=l; dirZ/=l; }
+
+
+
+      // Move relative to camera yaw
+
+      const yaw = camState.yaw;
+
+      const sin = Math.sin(yaw), cos = Math.cos(yaw);
+
+      const vx = dirX * cos - dirZ * sin;
+
+      const vz = dirX * sin + dirZ * cos;
+
+
+
+      const targetSpeed = (input.run ? params.sprintSpeed : params.walkSpeed);
+
+      const desiredVX = vx * targetSpeed;
+
+      const desiredVZ = vz * targetSpeed;
+
+
+
+      // Current velocity
+
+      const vel = player.body.velocity;
+
+
+
+      // Horizontal acceleration with damping
+
+      const ax = (desiredVX - vel.x) * params.accel;
+
+      const az = (desiredVZ - vel.z) * params.accel;
+
+      vel.x += ax * dt;
+
+      vel.z += az * dt;
+
+
+
+      // Damping when no input
+
+      if (l===0){
+
+        vel.x *= (1 - Math.min(params.damping*dt, 1));
+
+        vel.z *= (1 - Math.min(params.damping*dt, 1));
+
+      }
+
+
+
+      // Slope limit: if standing on steep surface, slide down a bit
+
+      const maxSlopeCos = Math.cos(THREE.MathUtils.degToRad(params.maxSlopeDeg));
+
+      if (isGrounded && groundNormal.y < maxSlopeCos){
+
+        // Project gravity along the slope to induce slide
+
+        vel.x += (groundNormal.x) * dt * 4;
+
+        vel.z += (groundNormal.z) * dt * 4;
+
+      }
+
+
+
+      // Step offset: if obstacle ahead at ankle height and below stepHeight, lift slightly
+
+      if (isGrounded && l>0){
+
+        const forward = new CANNON.Vec3(vx, 0, vz);
+
+        forward.normalize();
+
+        const ankle = new CANNON.Vec3(player.body.position.x, player.body.position.y - player.halfHeight + 0.12, player.body.position.z);
+
+        const fRay = new CANNON.Ray(ankle, forward);
+
+        fRay._updateDirection();
+
+        fRay.length = 0.6;
+
+        const fRes = new CANNON.RaycastResult();
+
+        fRay.intersectWorld(world, { mode:CANNON.Ray.ANY, skipBackfaces:true }, fRes);
+
+        if (fRes.hasHit){
+
+          // Shoot a ray up to check clearance
+
+          const up = new CANNON.Ray(new CANNON.Vec3(ankle.x + forward.x*0.2, ankle.y, ankle.z + forward.z*0.2), new CANNON.Vec3(0,1,0));
+
+          up.length = params.stepHeight + 0.02;
+
+          const uRes = new CANNON.RaycastResult();
+
+          up.intersectWorld(world, { mode:CANNON.Ray.ANY, skipBackfaces:true }, uRes);
+
+          if (!uRes.hasHit){
+
+            // Nudge upward
+
+            player.body.position.y += Math.min(params.stepHeight, 0.06);
+
+          }
+
+        }
+
+      }
+
+
+
+      // Jump with coyote time
+
+      const canCoyote = (performance.now() - lastGroundedTime) <= params.coyoteMs;
+
+      if ((input.jump) && (isGrounded || canCoyote)){
+
+        // Calculate jump velocity to reach jumpHeight: v = sqrt(2gh)
+
+        const vy = Math.sqrt(2*params.gravity*params.jumpHeight);
+
+        vel.y = vy;
+
+        input.jump = false;
+
+        playJump();
+
+      }
+
+
+
+      // Footsteps
+
+      const groundSpeed = Math.hypot(vel.x, vel.z);
+
+      if (audio.ctx && isGrounded && groundSpeed > 0.8){
+
+        const interval = input.run ? audio.stepIntervalRun : audio.stepIntervalWalk;
+
+        if (audio.ctx.currentTime - audio.lastStep > interval){
+
+          playStep();
+
+          audio.lastStep = audio.ctx.currentTime;
+
+        }
+
+      }
+
+
+
+      // Rotate player capsule (visual) toward movement
+
+      if (groundSpeed > 0.2){
+
+        const targetYaw = Math.atan2(vel.x, vel.z);
+
+        const q = player.mesh.quaternion;
+
+        const current = new THREE.Euler().setFromQuaternion(q);
+
+        const newYaw = THREE.MathUtils.lerpAngle(current.y, targetYaw, 0.15);
+
+        player.mesh.rotation.set(0, newYaw, 0);
+
+      }
+
+
+
+      // Sync mesh to body
+
+      player.mesh.position.copy(player.body.position);
+
+    }
+
+
+
+    // ======= Camera update with spring arm & collision =======
+
+    function updateCamera(dt){
+
+      const head = new THREE.Vector3(player.body.position.x, player.body.position.y + 0.8, player.body.position.z);
+
+
+
+      // Soft recenter when not controlling camera
+
+      if (!camState.mouseDown){
+
+        const targetYaw = player.mesh.rotation.y || 0;
+
+        // If player requested recenter
+
+        if (input.wantCenter) { camState.yaw = targetYaw; input.wantCenter=false; }
+
+        const deltaYaw = normalizeAngle(targetYaw - camState.yaw);
+
+        camState.yaw += deltaYaw * params.camRotLerp;
+
+      }
+
+
+
+      // Desired camera position (spring arm)
+
+      const back = new THREE.Vector3(0, params.cameraArmHeight, params.cameraArmLen);
+
+      back.applyAxisAngle(new THREE.Vector3(0,1,0), camState.yaw);
+
+      let desired = head.clone().add(new THREE.Vector3(0, params.cameraArmHeight, 0));
+
+      desired.add(new THREE.Vector3(-Math.sin(camState.yaw), 0, -Math.cos(camState.yaw)).multiplyScalar(params.cameraArmLen));
+
+      desired.y = head.y + params.cameraArmHeight;
+
+
+
+      // Raycast to avoid clipping
+
+      const from = head;
+
+      const to = desired.clone();
+
+      const hits = raycastThree(from, to, colliders);
+
+      let camPos = desired;
+
+      if (hits){
+
+        const hitPoint = hits.point.clone();
+
+        // bring camera a bit closer than the hit point
+
+        camPos = hitPoint.lerp(from, 0.08);
+
+      }
+
+
+
+      // Smooth move
+
+      camera.position.lerp(camPos, params.camLerp);
+
+      camera.lookAt(head);
+
+    }
+
+
+
+    function normalizeAngle(a){
+
+      while (a > Math.PI) a -= Math.PI*2;
+
+      while (a < -Math.PI) a += Math.PI*2;
+
+      return a;
+
+    }
+
+
+
+    // ======= Resize =======
+
+    window.addEventListener('resize', ()=>{
+
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      camera.aspect = window.innerWidth / window.innerHeight;
+
+      camera.updateProjectionMatrix();
+
+    });
+
+
+
+    // ======= Utilities =======
+
+    function raycastThree(from, to, meshes){
+
+      const dir = new THREE.Vector3().subVectors(to, from).normalize();
+
+      const dist = from.distanceTo(to);
+
+      raycaster.set(from, dir);
+
+      raycaster.far = dist;
+
+      const inter = raycaster.intersectObjects(meshes, false);
+
+      return inter.length ? inter[0] : null;
+
+    }
+
+
+
+    function createTrimeshFromTHREE(geom){
+
+      const pos = geom.attributes.position.array;
+
+      const indices = [...Array(pos.length/3).keys()];
+
+      const vertices = [];
+
+      for (let i=0;i<pos.length;i+=3){
+
+        vertices.push(new CANNON.Vec3(pos[i], pos[i+1], pos[i+2]));
+
+      }
+
+      const faces = [];
+
+      for (let i=0;i<indices.length;i+=3){
+
+        faces.push([indices[i], indices[i+1], indices[i+2]]);
+
+      }
+
+      const trimesh = new CANNON.Trimesh(
+
+        new Float32Array(vertices.flatMap(v=>[v.x,v.y,v.z])),
+
+        new Uint16Array(indices)
+
+      );
+
+      return trimesh;
+
+    }
+
+
+
+    function createCapsuleShape(radius, halfHeight){
+
+      // Compound: cylinder + 2 spheres
+
+      const comp = new CANNON.Body({ mass: 80, material: defaultMat, fixedRotation: true });
+
+      const cyl = new CANNON.Cylinder(radius, radius, halfHeight*2, 12);
+
+      const q = new CANNON.Quaternion();
+
+      q.setFromEuler(Math.PI/2, 0, 0); // x-axis to stand upright
+
+      comp.addShape(cyl, new CANNON.Vec3(0,0,0), q);
+
+      const spTop = new CANNON.Sphere(radius);
+
+      const spBot = new CANNON.Sphere(radius);
+
+      comp.addShape(spTop, new CANNON.Vec3(0, halfHeight, 0));
+
+      comp.addShape(spBot, new CANNON.Vec3(0,-halfHeight, 0));
+
+      comp.linearDamping = 0.01;
+
+      return comp;
+
+    }
+
+
+
+    function createPlayer(){
+
+      const radius = 0.4, height = 1.7;
+
+      const halfHeight = (height/2 - radius);
+
+      const body = createCapsuleShape(radius, halfHeight);
+
+      body.position.set(0, height*0.6, 0); // start above ground
+
+      body.allowSleep = false;
+
+
+
+      // Visual: low-poly robot capsule
+
+      const group = new THREE.Group();
+
+      const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 0.9, 6, 12), MAT.player);
+
+      torso.position.set(0, 0.95, 0);
+
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 12), MAT.playerHead);
+
+      head.position.set(0, 1.8, 0);
+
+      const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,0.02), new THREE.MeshBasicMaterial({ color:0xffffff }));
+
+      const eyeR = eyeL.clone();
+
+      eyeL.position.set(-0.09, 1.85, 0.25); eyeR.position.set(0.09, 1.85, 0.25);
+
+      group.add(torso, head, eyeL, eyeR);
+
+
+
+      return { body, mesh: group, halfHeight };
+
+    }
+
+
+
+    // Prevent arrow keys from scrolling page
+
+    window.addEventListener('keydown', (e)=>{
+
+      const prevent = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code);
+
+      if (prevent) e.preventDefault();
+
+    }, { passive:false });
+
+
+
+  </script>
+
+</body>
+
+</html>
