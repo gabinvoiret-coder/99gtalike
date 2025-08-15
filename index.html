@@ -1,0 +1,786 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2575.5">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 13.0px Courier; -webkit-text-stroke: #000000}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 13.0px Courier; -webkit-text-stroke: #000000; min-height: 16.0px}
+    span.s1 {font-kerning: none}
+  </style>
+</head>
+<body>
+<p class="p1"><span class="s1">&lt;!--</span></p>
+<p class="p1"><span class="s1">How to run</span></p>
+<p class="p1"><span class="s1">- Option 1: Double-cliquer sur ce fichier (certains navigateurs bloquent les imports ESModules en file://).</span></p>
+<p class="p1"><span class="s1">- Option 2 (recommandé) : dans ce dossier, lancez un serveur local :</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>npm i -g http-server</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>npx http-server .</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>puis ouvrez l’URL indiquée (ex: http://127.0.0.1:8080).</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">Touches (AZERTY &amp; QWERTY)</span></p>
+<p class="p1"><span class="s1">- Déplacement : ZQSD / WASD / Flèches</span></p>
+<p class="p1"><span class="s1">- Souris : Maintenir clic droit pour orienter la caméra</span></p>
+<p class="p1"><span class="s1">- Saut : Espace</span></p>
+<p class="p1"><span class="s1">- Sprint : Shift</span></p>
+<p class="p1"><span class="s1">- Pause : Échap ou P</span></p>
+<p class="p1"><span class="s1">- Debug : F1 (grille, bounding boxes, sliders)</span></p>
+<p class="p1"><span class="s1">- Recentre caméra : R</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">Paramètres tunables (par défaut)</span></p>
+<p class="p1"><span class="s1">- Gravité : 9.81</span></p>
+<p class="p1"><span class="s1">- Vitesse marche : 4.0 m/s</span></p>
+<p class="p1"><span class="s1">- Vitesse sprint : 7.2 m/s</span></p>
+<p class="p1"><span class="s1">- Accélération : 30.0</span></p>
+<p class="p1"><span class="s1">- Freinage (damping) : 12.0</span></p>
+<p class="p1"><span class="s1">- Hauteur saut : 1.0 m (calculée → vitesse verticale)</span></p>
+<p class="p1"><span class="s1">- Hauteur step offset (franchissement trottoir) : 0.25 m</span></p>
+<p class="p1"><span class="s1">- Pente max : 40°</span></p>
+<p class="p1"><span class="s1">- Longueur bras de caméra (spring arm) : 5.5 m, hauteur 2.2 m</span></p>
+<p class="p1"><span class="s1">- Coyote time (tolérance saut après bord) : 100 ms</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">Prochaines features (idées)</span></p>
+<p class="p1"><span class="s1">- Voiture “drivable” low-poly</span></p>
+<p class="p1"><span class="s1">- PNJ qui marchent (éviter le joueur)</span></p>
+<p class="p1"><span class="s1">- Checkpoints &amp; mini-défis de parkour</span></p>
+<p class="p1"><span class="s1">--&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">&lt;!doctype html&gt;</span></p>
+<p class="p1"><span class="s1">&lt;html lang="fr"&gt;</span></p>
+<p class="p1"><span class="s1">&lt;head&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;meta charset="utf-8" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;title&gt;GTA-like 10% — WebGL (three.js + cannon-es)&lt;/title&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;style&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>html, body { margin:0; padding:0; height:100%; background:#0b0e12; overflow:hidden; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>#overlay {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>#hud {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>position: fixed; left: 12px; top: 12px; color: #dfe7ff; font-size: 14px; line-height: 1.35; text-shadow: 0 1px 0 rgba(0,0,0,.45);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>background: rgba(10,14,22,.35); border: 1px solid rgba(255,255,255,.08); border-radius: 8px; padding: 10px 12px; backdrop-filter: blur(4px);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>pointer-events: none;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>#fps {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>position: fixed; right: 12px; top: 12px; color:#dfe7ff; font-size:13px; background: rgba(10,14,22,.35);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:8px 10px; text-align:right; min-width: 72px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>pointer-events: none;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>#paused {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>position: fixed; inset: 0; display:none; align-items:center; justify-content:center; background: rgba(0,0,0,.45); color:#fff;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>font-size: 24px; letter-spacing:.5px; text-shadow:0 2px 8px rgba(0,0,0,.8);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>#debugPanel {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>position: fixed; left: 12px; bottom: 12px; width: 280px; background: rgba(18,24,34,.85); color:#e9f0ff; border:1px solid rgba(255,255,255,.1);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>border-radius: 12px; padding: 10px 12px; display:none; box-shadow: 0 10px 30px rgba(0,0,0,.35);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>#debugPanel h3 { margin:6px 0 8px; font-size:14px; opacity:.9; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>#debugPanel label { display:flex; align-items:center; gap:8px; margin:7px 0; font-size:12px; opacity:.95;}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>#debugPanel input[type="range"] { flex:1; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>#helpKeys { font-size:12px; opacity:.85; margin-top:6px; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>canvas { display:block; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>/* Mini-map frame overlay (drawn via scissor) */</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>#miniFrame {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>position: fixed; right: 12px; top: 64px; width: 200px; height: 200px; border-radius: 10px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>outline: 1px solid rgba(255,255,255,.15); box-shadow: 0 8px 18px rgba(0,0,0,.25); pointer-events:none;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>#note { position: fixed; right: 12px; bottom: 12px; color:#9fb4ff; font-size:11px; opacity:.75;}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;/style&gt;</span></p>
+<p class="p1"><span class="s1">&lt;/head&gt;</span></p>
+<p class="p1"><span class="s1">&lt;body&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;div id="hud"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div&gt;&lt;strong&gt;Contrôles&lt;/strong&gt; : ZQSD/WASD/Flèches · Espace=Jump · Shift=Sprint · Clic droit=Caméra · Esc/P=Pause · F1=Debug&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div id="helpKeys" aria-hidden="true"&gt;Astuce : R pour recentrer la caméra derrière le joueur.&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;div id="fps"&gt;FPS: --&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;div id="paused"&gt;⏸️ Pause&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;div id="miniFrame" aria-hidden="true"&gt;&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;div id="debugPanel" role="dialog" aria-label="Panneau debug"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;h3&gt;Debug&lt;/h3&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;label&gt;Vitesse marche &lt;input id="walkSpeed" type="range" min="2" max="8" step="0.1"&gt;&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;label&gt;Vitesse sprint &lt;input id="sprintSpeed" type="range" min="4" max="12" step="0.1"&gt;&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;label&gt;Accélération &lt;input id="accel" type="range" min="10" max="60" step="1"&gt;&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;label&gt;Damping &lt;input id="damping" type="range" min="4" max="30" step="1"&gt;&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;label&gt;Gravité &lt;input id="gravity" type="range" min="2" max="20" step="0.1"&gt;&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;label&gt;Friction sol &lt;input id="friction" type="range" min="0" max="1" step="0.05"&gt;&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;label&gt;Pente max (°) &lt;input id="slope" type="range" min="10" max="60" step="1"&gt;&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div style="margin-top:8px; display:flex; gap:6px;"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;button id="toggleGrid"&gt;Grille&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;button id="toggleBBox"&gt;Bounding&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;button id="resetCam"&gt;Reset cam&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;div id="overlay" aria-hidden="true"&gt;&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;div id="note"&gt;Cycle jour/nuit actif ✦&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;script type="module"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ===== Imports =====</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>import { BufferGeometryUtils } from 'https://unpkg.com/three@0.161.0/examples/jsm/utils/BufferGeometryUtils.js';</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>import * as CANNON from 'https://cdn.skypack.dev/cannon-es';</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Globals / Params =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const params = {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>gravity: 9.81,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>walkSpeed: 4.0,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>sprintSpeed: 7.2,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>accel: 30.0,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>damping: 12.0,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>jumpHeight: 1.0,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>stepHeight: 0.25,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>maxSlopeDeg: 40,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>cameraArmLen: 5.5,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>cameraArmHeight: 2.2,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>camLerp: 0.12,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>camRotLerp: 0.15,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>coyoteMs: 100,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>miniSize: 200,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>roadWidth: 8,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>sidewalkH: 0.18,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>paused: false,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>debug: false,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>showGrid: false,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>showBBox: false,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Renderer &amp; Scene Setup =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const renderer = new THREE.WebGLRenderer({ antialias: true });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>renderer.setSize(window.innerWidth, window.innerHeight);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>renderer.setClearColor(0x0b0e12, 1);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>renderer.autoClear = false; // for mini-map second pass</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>document.body.appendChild(renderer.domElement);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const scene = new THREE.Scene();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>scene.fog = new THREE.Fog(0x0b0e12, 60, 220);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// Camera (main)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>camera.position.set(0, 2, 6);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// Camera (mini-map top-down ortho)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const miniCamSize = 60;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const miniCam = new THREE.OrthographicCamera(-miniCamSize, miniCamSize, miniCamSize, -miniCamSize, 0.1, 500);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>miniCam.up.set(0,0,-1); // north-up feel</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>miniCam.lookAt(0,-1,0);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// Lights &amp; day/night</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const hemi = new THREE.HemisphereLight(0xbfd7ff, 0x223344, 0.45);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>scene.add(hemi);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>dirLight.position.set(40, 80, 40);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>scene.add(dirLight);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Physics World =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -params.gravity, 0) });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>world.broadphase = new CANNON.SAPBroadphase(world);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>world.allowSleep = true;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const defaultMat = new CANNON.Material('default');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const groundMat = new CANNON.Material('ground');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const contactMat = new CANNON.ContactMaterial(defaultMat, groundMat, { friction: 0.3, restitution: 0.0 });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>world.addContactMaterial(contactMat);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>world.defaultContactMaterial.friction = 0.25;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Helpers =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const grid = new THREE.GridHelper(300, 60, 0x334, 0x223);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>grid.visible = false;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>scene.add(grid);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const bboxHelpers = [];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const addBBoxHelper = (mesh) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const box = new THREE.Box3().setFromObject(mesh);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const size = new THREE.Vector3(); box.getSize(size);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const center = new THREE.Vector3(); box.getCenter(center);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const g = new THREE.BoxGeometry(size.x, size.y, size.z);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const e = new THREE.EdgesGeometry(g);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const w = new THREE.LineSegments(e, new THREE.LineBasicMaterial({ color: 0x77aaff }));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>w.position.copy(center);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>w.visible = params.showBBox;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>bboxHelpers.push({ mesh, helper: w });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>scene.add(w);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Materials =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const MAT = {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>ground: new THREE.MeshLambertMaterial({ color: 0x254155 }),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>road: <span class="Apple-converted-space">  </span>new THREE.MeshLambertMaterial({ color: 0x2a2f35 }),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>side: <span class="Apple-converted-space">  </span>new THREE.MeshLambertMaterial({ color: 0x707780 }),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>buildingA: new THREE.MeshLambertMaterial({ color: 0x536b8a }),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>buildingB: new THREE.MeshLambertMaterial({ color: 0x3f5a78 }),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>park: <span class="Apple-converted-space">  </span>new THREE.MeshLambertMaterial({ color: 0x2e5a3a }),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>ramp: <span class="Apple-converted-space">  </span>new THREE.MeshLambertMaterial({ color: 0x4b4f57 }),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>player: new THREE.MeshStandardMaterial({ color: 0xf1bd5a, roughness: 0.8, metalness: 0.1 }),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>playerHead: new THREE.MeshStandardMaterial({ color: 0x2b2f38, roughness: 0.9, metalness: 0.0 }),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>props:<span class="Apple-converted-space">  </span>new THREE.MeshLambertMaterial({ color: 0x8aa4c2 }),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= City Generation (low-poly) =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const colliders = []; // Three meshes for camera raycast</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const bodies = [];<span class="Apple-converted-space">    </span>// Cannon bodies for debug toggles</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// Ground</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const groundG = new THREE.BoxGeometry(300, 1, 300);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const groundM = MAT.ground;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const ground = new THREE.Mesh(groundG, groundM);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>ground.position.y = -0.5;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>ground.receiveShadow = false; scene.add(ground); addBBoxHelper(ground);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>colliders.push(ground);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const groundShape = new CANNON.Box(new CANNON.Vec3(150, 0.5, 150));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const groundBody = new CANNON.Body({ mass: 0, shape: groundShape, material: groundMat });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>groundBody.position.set(0, -0.5, 0); world.addBody(groundBody); bodies.push(groundBody);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// Roads grid + sidewalks</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const roadZ = [-40, 0, 40];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const roadX = [-40, 0, 40];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const makeRoad = (x, z, len=120, wid=params.roadWidth) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const g = new THREE.BoxGeometry(wid, 0.08, len);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const m = MAT.road;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const mesh = new THREE.Mesh(g, m);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>mesh.position.set(x, 0.04, z);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>scene.add(mesh); colliders.push(mesh); addBBoxHelper(mesh);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const shape = new CANNON.Box(new CANNON.Vec3(wid*0.5, 0.04, len*0.5));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const body = new CANNON.Body({ mass: 0, shape, material: groundMat });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>body.position.set(x, 0.04, z); world.addBody(body); bodies.push(body);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// sidewalks (left/right or top/bottom)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const sH = params.sidewalkH, sW = 2;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (len &gt; wid) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// along Z → sidewalks on X sides</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>[[x - wid/2 - sW/2, z], [x + wid/2 + sW/2, z]].forEach(([sx, sz])=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>const sg = new THREE.BoxGeometry(sW, sH, len);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>const sm = MAT.side;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>const s = new THREE.Mesh(sg, sm);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>s.position.set(sx, sH/2, sz);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>scene.add(s); colliders.push(s); addBBoxHelper(s);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>const sshp = new CANNON.Box(new CANNON.Vec3(sW*0.5, sH*0.5, len*0.5));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>const sb = new CANNON.Body({ mass:0, shape:sshp, material: groundMat });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>sb.position.set(sx, sH/2, sz); world.addBody(sb); bodies.push(sb);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>} else {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// along X → sidewalks on Z sides</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>[[x, z - wid/2 - sW/2], [x, z + wid/2 + sW/2]].forEach(([sx, sz])=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>const sg = new THREE.BoxGeometry(len, sH, sW);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>const sm = MAT.side;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>const s = new THREE.Mesh(sg, sm);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>s.position.set(sx, sH/2, sz);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>scene.add(s); colliders.push(s); addBBoxHelper(s);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>const sshp = new CANNON.Box(new CANNON.Vec3(len*0.5, sH*0.5, sW*0.5));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>const sb = new CANNON.Body({ mass:0, shape:sshp, material: groundMat });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>sb.position.set(sx, sH/2, sz); world.addBody(sb); bodies.push(sb);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>roadZ.forEach(z =&gt; makeRoad(0, z, 120, params.roadWidth)); // long north-south</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>roadX.forEach(x =&gt; makeRoad(x, 0, 120, params.roadWidth)); // long east-west (rotated by swapping args)</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// Park</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const park = new THREE.Mesh(new THREE.BoxGeometry(36, 0.12, 28), MAT.park);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>park.position.set(-35, 0.06, 35); scene.add(park); colliders.push(park); addBBoxHelper(park);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const parkB = new CANNON.Body({ mass:0, shape:new CANNON.Box(new CANNON.Vec3(18, 0.06, 14)), material: groundMat });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>parkB.position.set(-35, 0.06, 35); world.addBody(parkB); bodies.push(parkB);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// Ramp</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const rampLen=10, rampH=2, rampW=6;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const rampGeo = new THREE.BufferGeometry();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Simple wedge ramp</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const vertices = new Float32Array([</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// base rectangle (y=0)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>-rampW/2,0,-rampLen/2, <span class="Apple-converted-space">  </span>rampW/2,0,-rampLen/2, <span class="Apple-converted-space">  </span>rampW/2,0, rampLen/2,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>-rampW/2,0,-rampLen/2, <span class="Apple-converted-space">  </span>rampW/2,0, rampLen/2,<span class="Apple-converted-space">  </span>-rampW/2,0, rampLen/2,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// back rectangle (vertical face at -len/2)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>-rampW/2,0,-rampLen/2, <span class="Apple-converted-space">  </span>rampW/2,0,-rampLen/2, <span class="Apple-converted-space">  </span>rampW/2,rampH,-rampLen/2,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>-rampW/2,0,-rampLen/2, <span class="Apple-converted-space">  </span>rampW/2,rampH,-rampLen/2, -rampW/2,rampH,-rampLen/2,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// top slope</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>-rampW/2,rampH,-rampLen/2,<span class="Apple-converted-space">  </span>rampW/2,rampH,-rampLen/2, <span class="Apple-converted-space">  </span>rampW/2,0, rampLen/2,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>-rampW/2,rampH,-rampLen/2, <span class="Apple-converted-space">  </span>rampW/2,0, rampLen/2, <span class="Apple-converted-space">    </span>-rampW/2,0, rampLen/2,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// sides</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>-rampW/2,0,-rampLen/2,<span class="Apple-converted-space">  </span>-rampW/2,0, rampLen/2,<span class="Apple-converted-space">  </span>-rampW/2,rampH,-rampLen/2,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">         </span>rampW/2,0,-rampLen/2, <span class="Apple-converted-space">  </span>rampW/2,rampH,-rampLen/2,<span class="Apple-converted-space">  </span>rampW/2,0, rampLen/2,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>]);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const geom = new THREE.BufferGeometry();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>geom.computeVertexNormals();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>rampGeo.copy(geom);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const rampMesh = new THREE.Mesh(rampGeo, MAT.ramp);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>rampMesh.position.set(18, 0, -18);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>scene.add(rampMesh); colliders.push(rampMesh); addBBoxHelper(rampMesh);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// Physics for ramp: use a static Trimesh (approx)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const rampTris = rampGeo.attributes.position.array;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const rampIndices = [...Array(rampTris.length/3).keys()];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const rampCShape = createTrimeshFromTHREE(rampGeo);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const rampBody = new CANNON.Body({ mass:0, shape:rampCShape, material: groundMat });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>rampBody.position.set(18,0,-18); world.addBody(rampBody); bodies.push(rampBody);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// Buildings (4–6)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const buildingDefs = [</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>{ pos:[-25,0,-25], size:[10,16,10], mat: MAT.buildingA },</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>{ pos:[ 30,0,-10], size:[14,22,12], mat: MAT.buildingB },</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>{ pos:[-10,0, 22], size:[12,18,12], mat: MAT.buildingA },</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>{ pos:[ 22,0, 25], size:[10,14,10], mat: MAT.buildingB },</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>{ pos:[-40,0,<span class="Apple-converted-space">  </span>0], size:[12,24,10], mat: MAT.buildingB },</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>{ pos:[<span class="Apple-converted-space">  </span>8,0,-32], size:[16,20,12], mat: MAT.buildingA },</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>buildingDefs.forEach(b=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const m = new THREE.Mesh(new THREE.BoxGeometry(b.size[0], b.size[1], b.size[2]), b.mat);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>m.position.set(b.pos[0], b.size[1]/2, b.pos[2]);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>scene.add(m); colliders.push(m); addBBoxHelper(m);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const sh = new CANNON.Box(new CANNON.Vec3(b.size[0]/2, b.size[1]/2, b.size[2]/2));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const body = new CANNON.Body({ mass: 0, shape: sh, material: groundMat });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>body.position.set(b.pos[0], b.size[1]/2, b.pos[2]);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>world.addBody(body); bodies.push(body);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// Street props: low bollards to practice "step offset"</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>for (let i=0;i&lt;8;i++){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const boll = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.45,12), MAT.props);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const x = -6 + i*1.6, z = 8;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>boll.position.set(x, 0.225, z); scene.add(boll); colliders.push(boll); addBBoxHelper(boll);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const bshape = new CANNON.Cylinder(0.18,0.18,0.45,12);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const body = new CANNON.Body({ mass:0, material: groundMat });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>body.addShape(bshape);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>body.position.set(x, 0.225, z); world.addBody(body); bodies.push(body);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Player (capsule + simple "robot" mesh) =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const player = createPlayer();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>scene.add(player.mesh); world.addBody(player.body);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Camera Follow ("spring arm" with collision) =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const raycaster = new THREE.Raycaster();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const camState = { yaw: 0, pitch: 0.12, mouseDown: false };</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= HUD / FPS =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const fpsEl = document.getElementById('fps');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>let fpsAcc=0, fpsCount=0, fpsTime=0;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Input =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const input = {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>fwd:false, back:false, left:false, right:false,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>run:false, jump:false, mouseDX:0, mouseDY:0, wantCenter:false,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const keyMap = {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>'KeyW':'fwd','ArrowUp':'fwd','KeyZ':'fwd',</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>'KeyS':'back','ArrowDown':'back',</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>'KeyA':'left','ArrowLeft':'left','KeyQ':'left',</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>'KeyD':'right','ArrowRight':'right',</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>'ShiftLeft':'run','ShiftRight':'run',</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>'Space':'jump',</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>window.addEventListener('keydown', e=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (e.code==='Escape' || e.code==='KeyP'){ togglePause(); return; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (e.code==='F1'){ e.preventDefault(); toggleDebug(); return; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (e.code==='KeyR'){ input.wantCenter = true; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (keyMap[e.code]!==undefined){ input[keyMap[e.code]] = true; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>window.addEventListener('keyup', e=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (keyMap[e.code]!==undefined){ input[keyMap[e.code]] = false; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (e.code==='Space') input.jump = false;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>renderer.domElement.addEventListener('contextmenu', e=&gt;e.preventDefault());</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>renderer.domElement.addEventListener('mousedown', e=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (e.button===2){ camState.mouseDown = true; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>window.addEventListener('mouseup', e=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (e.button===2){ camState.mouseDown = false; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>window.addEventListener('mousemove', e=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (camState.mouseDown){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>camState.yaw -= e.movementX * 0.0022;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>camState.pitch -= e.movementY * 0.0016;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>camState.pitch = THREE.MathUtils.clamp(camState.pitch, -0.35, 0.6);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= WebAudio (procedural footsteps &amp; jump) =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const audio = {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>ctx: null, lastStep: 0, stepIntervalWalk: 0.42, stepIntervalRun: 0.28</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>function ensureAudio(){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (!audio.ctx){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>audio.ctx = new (window.AudioContext || window.webkitAudioContext)();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>function playStep(){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (!audio.ctx) return;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const t = audio.ctx.currentTime;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const osc = audio.ctx.createOscillator();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const gain = audio.ctx.createGain();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>osc.type = 'triangle';</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>osc.frequency.setValueAtTime(180, t);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>osc.frequency.exponentialRampToValueAtTime(90, t+0.06);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>gain.gain.setValueAtTime(0.0, t);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>gain.gain.linearRampToValueAtTime(0.12, t+0.005);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>gain.gain.exponentialRampToValueAtTime(0.0001, t+0.09);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>osc.connect(gain).connect(audio.ctx.destination);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>osc.start(t); osc.stop(t+0.1);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>function playJump(){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (!audio.ctx) return;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const t = audio.ctx.currentTime;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const osc = audio.ctx.createOscillator();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const gain = audio.ctx.createGain();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>osc.type='sine';</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>osc.frequency.setValueAtTime(320, t);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>osc.frequency.exponentialRampToValueAtTime(120, t+0.12);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>gain.gain.setValueAtTime(0.0, t);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>gain.gain.linearRampToValueAtTime(0.18, t+0.01);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>gain.gain.exponentialRampToValueAtTime(0.0001, t+0.13);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>osc.connect(gain).connect(audio.ctx.destination);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>osc.start(t); osc.stop(t+0.14);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>window.addEventListener('pointerdown', ensureAudio, { once:true });</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Pause / Debug UI =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const pausedEl = document.getElementById('paused');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>function togglePause(){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>params.paused = !params.paused;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>pausedEl.style.display = params.paused ? 'flex' : 'none';</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>function toggleDebug(){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>params.debug = !params.debug;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>document.getElementById('debugPanel').style.display = params.debug ? 'block' : 'none';</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>grid.visible = params.showGrid;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>bboxHelpers.forEach(h=&gt;h.helper.visible = params.showBBox);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>document.addEventListener('visibilitychange', ()=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (document.hidden) { params.paused = true; pausedEl.style.display='flex'; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// Debug sliders</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const bindRange = (id, key, factor=1, inverse=false) =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const el = document.getElementById(id);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const setFromParam = ()=&gt; el.value = params[key] * factor;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>setFromParam();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>el.addEventListener('input', ()=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>params[key] = parseFloat(el.value) / factor;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if (key==='gravity'){ world.gravity.set(0, -params.gravity, 0); }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>bindRange('walkSpeed','walkSpeed');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>bindRange('sprintSpeed','sprintSpeed');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>bindRange('accel','accel');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>bindRange('damping','damping');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>bindRange('gravity','gravity');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>bindRange('friction','friction');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>bindRange('slope','maxSlopeDeg');</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>document.getElementById('toggleGrid').onclick = ()=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>params.showGrid = !params.showGrid; grid.visible = params.showGrid;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>document.getElementById('toggleBBox').onclick = ()=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>params.showBBox = !params.showBBox; bboxHelpers.forEach(h=&gt;h.helper.visible = params.showBBox);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>document.getElementById('resetCam').onclick = ()=&gt;{ camState.yaw = 0; camState.pitch = 0.12; };</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Game Loop =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>let last = performance.now();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>let accumulator = 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const fixed = 1/90;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>function animate(now){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>requestAnimationFrame(animate);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const dt = Math.min((now - last)/1000, 0.05);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>last = now;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Day/Night cycle (very slow)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const t = now * 0.00002;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>hemi.intensity = 0.35 + 0.2*Math.sin(t*2*Math.PI);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>dirLight.intensity = 0.55 + 0.25*Math.max(0, Math.sin(t*2*Math.PI));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>dirLight.position.set(60*Math.cos(t*2*Math.PI), 80*Math.max(0.2, Math.sin(t*2*Math.PI)), 60*Math.sin(t*2*Math.PI));</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (!params.paused){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// Physics fixed-step</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>accumulator += dt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const substeps = 3;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>while (accumulator &gt;= fixed){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>stepGame(fixed);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>world.step(fixed, fixed, substeps);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>accumulator -= fixed;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Camera follow</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>updateCamera(dt);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Render main</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderer.setViewport(0,0,window.innerWidth, window.innerHeight);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderer.setScissorTest(false);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderer.clear();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderer.render(scene, camera);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Render mini-map in a scissored viewport (top-right)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const miniW = params.miniSize, miniH = params.miniSize;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const x = window.innerWidth - miniW - 12; // match CSS frame</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const y = window.innerHeight - (window.innerHeight - 64) - 64; // top offset 64</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderer.setViewport(x, window.innerHeight-64-miniH, miniW, miniH);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderer.setScissor(x, window.innerHeight-64-miniH, miniW, miniH);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderer.setScissorTest(true);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// position mini-cam over player</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const p = player.body.position;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>miniCam.position.set(p.x, 120, p.z);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>miniCam.lookAt(p.x, 0, p.z);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderer.render(scene, miniCam);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderer.setScissorTest(false);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// FPS</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>fpsTime += dt; fpsAcc += 1;<span class="Apple-converted-space"> </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (fpsTime &gt;= 0.25){<span class="Apple-converted-space"> </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const fps = Math.round(fpsAcc / fpsTime);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>fpsEl.textContent = `FPS: ${fps}`;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>fpsTime = 0; fpsAcc = 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>requestAnimationFrame(animate);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Core Gameplay Step =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>let lastGroundedTime = 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>function stepGame(dt){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Ground check via raycast</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const footPos = new CANNON.Vec3(player.body.position.x, player.body.position.y - player.halfHeight, player.body.position.z);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const down = new CANNON.Vec3(0, -1, 0);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const ray = new CANNON.Ray(footPos, down);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>ray._updateDirection(); // internal</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>ray.length = 0.3;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const result = new CANNON.RaycastResult();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>let isGrounded = false, groundNormal = new CANNON.Vec3(0,1,0);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>ray.intersectWorld(world, {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>collisionFilterMask: -1, collisionFilterGroup: -1, skipBackfaces: true,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>mode: CANNON.Ray.ANY</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}, result);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (result.hasHit){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>isGrounded = true;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>groundNormal.copy(result.hitNormalWorld);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>lastGroundedTime = performance.now();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Inputs → desired velocity in camera space</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>let dirX = 0, dirZ = 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (input.fwd) dirZ -= 1;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (input.back) dirZ += 1;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (input.left) dirX -= 1;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (input.right) dirX += 1;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const l = Math.hypot(dirX, dirZ);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (l&gt;0){ dirX/=l; dirZ/=l; }</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Move relative to camera yaw</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const yaw = camState.yaw;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const sin = Math.sin(yaw), cos = Math.cos(yaw);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const vx = dirX * cos - dirZ * sin;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const vz = dirX * sin + dirZ * cos;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const targetSpeed = (input.run ? params.sprintSpeed : params.walkSpeed);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const desiredVX = vx * targetSpeed;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const desiredVZ = vz * targetSpeed;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Current velocity</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const vel = player.body.velocity;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Horizontal acceleration with damping</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const ax = (desiredVX - vel.x) * params.accel;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const az = (desiredVZ - vel.z) * params.accel;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>vel.x += ax * dt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>vel.z += az * dt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Damping when no input</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (l===0){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>vel.x *= (1 - Math.min(params.damping*dt, 1));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>vel.z *= (1 - Math.min(params.damping*dt, 1));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Slope limit: if standing on steep surface, slide down a bit</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const maxSlopeCos = Math.cos(THREE.MathUtils.degToRad(params.maxSlopeDeg));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (isGrounded &amp;&amp; groundNormal.y &lt; maxSlopeCos){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// Project gravity along the slope to induce slide</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>vel.x += (groundNormal.x) * dt * 4;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>vel.z += (groundNormal.z) * dt * 4;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Step offset: if obstacle ahead at ankle height and below stepHeight, lift slightly</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (isGrounded &amp;&amp; l&gt;0){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const forward = new CANNON.Vec3(vx, 0, vz);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>forward.normalize();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const ankle = new CANNON.Vec3(player.body.position.x, player.body.position.y - player.halfHeight + 0.12, player.body.position.z);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const fRay = new CANNON.Ray(ankle, forward);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>fRay._updateDirection();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>fRay.length = 0.6;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const fRes = new CANNON.RaycastResult();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>fRay.intersectWorld(world, { mode:CANNON.Ray.ANY, skipBackfaces:true }, fRes);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if (fRes.hasHit){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>// Shoot a ray up to check clearance</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>const up = new CANNON.Ray(new CANNON.Vec3(ankle.x + forward.x*0.2, ankle.y, ankle.z + forward.z*0.2), new CANNON.Vec3(0,1,0));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>up.length = params.stepHeight + 0.02;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>const uRes = new CANNON.RaycastResult();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>up.intersectWorld(world, { mode:CANNON.Ray.ANY, skipBackfaces:true }, uRes);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>if (!uRes.hasHit){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>// Nudge upward</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>player.body.position.y += Math.min(params.stepHeight, 0.06);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Jump with coyote time</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const canCoyote = (performance.now() - lastGroundedTime) &lt;= params.coyoteMs;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if ((input.jump) &amp;&amp; (isGrounded || canCoyote)){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// Calculate jump velocity to reach jumpHeight: v = sqrt(2gh)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const vy = Math.sqrt(2*params.gravity*params.jumpHeight);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>vel.y = vy;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>input.jump = false;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>playJump();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Footsteps</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const groundSpeed = Math.hypot(vel.x, vel.z);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (audio.ctx &amp;&amp; isGrounded &amp;&amp; groundSpeed &gt; 0.8){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const interval = input.run ? audio.stepIntervalRun : audio.stepIntervalWalk;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if (audio.ctx.currentTime - audio.lastStep &gt; interval){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>playStep();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>audio.lastStep = audio.ctx.currentTime;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Rotate player capsule (visual) toward movement</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (groundSpeed &gt; 0.2){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const targetYaw = Math.atan2(vel.x, vel.z);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const q = player.mesh.quaternion;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const current = new THREE.Euler().setFromQuaternion(q);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const newYaw = THREE.MathUtils.lerpAngle(current.y, targetYaw, 0.15);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>player.mesh.rotation.set(0, newYaw, 0);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Sync mesh to body</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>player.mesh.position.copy(player.body.position);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Camera update with spring arm &amp; collision =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>function updateCamera(dt){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const head = new THREE.Vector3(player.body.position.x, player.body.position.y + 0.8, player.body.position.z);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Soft recenter when not controlling camera</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (!camState.mouseDown){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const targetYaw = player.mesh.rotation.y || 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// If player requested recenter</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>if (input.wantCenter) { camState.yaw = targetYaw; input.wantCenter=false; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const deltaYaw = normalizeAngle(targetYaw - camState.yaw);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>camState.yaw += deltaYaw * params.camRotLerp;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Desired camera position (spring arm)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const back = new THREE.Vector3(0, params.cameraArmHeight, params.cameraArmLen);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>back.applyAxisAngle(new THREE.Vector3(0,1,0), camState.yaw);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>let desired = head.clone().add(new THREE.Vector3(0, params.cameraArmHeight, 0));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>desired.add(new THREE.Vector3(-Math.sin(camState.yaw), 0, -Math.cos(camState.yaw)).multiplyScalar(params.cameraArmLen));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>desired.y = head.y + params.cameraArmHeight;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Raycast to avoid clipping</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const from = head;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const to = desired.clone();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const hits = raycastThree(from, to, colliders);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>let camPos = desired;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (hits){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const hitPoint = hits.point.clone();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>// bring camera a bit closer than the hit point</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>camPos = hitPoint.lerp(from, 0.08);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Smooth move</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>camera.position.lerp(camPos, params.camLerp);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>camera.lookAt(head);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>function normalizeAngle(a){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>while (a &gt; Math.PI) a -= Math.PI*2;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>while (a &lt; -Math.PI) a += Math.PI*2;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>return a;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Resize =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>window.addEventListener('resize', ()=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderer.setSize(window.innerWidth, window.innerHeight);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>camera.aspect = window.innerWidth / window.innerHeight;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>camera.updateProjectionMatrix();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>});</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// ======= Utilities =======</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>function raycastThree(from, to, meshes){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const dir = new THREE.Vector3().subVectors(to, from).normalize();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const dist = from.distanceTo(to);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>raycaster.set(from, dir);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>raycaster.far = dist;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const inter = raycaster.intersectObjects(meshes, false);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>return inter.length ? inter[0] : null;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>function createTrimeshFromTHREE(geom){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const pos = geom.attributes.position.array;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const indices = [...Array(pos.length/3).keys()];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const vertices = [];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>for (let i=0;i&lt;pos.length;i+=3){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>vertices.push(new CANNON.Vec3(pos[i], pos[i+1], pos[i+2]));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const faces = [];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>for (let i=0;i&lt;indices.length;i+=3){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>faces.push([indices[i], indices[i+1], indices[i+2]]);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const trimesh = new CANNON.Trimesh(</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>new Float32Array(vertices.flatMap(v=&gt;[v.x,v.y,v.z])),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>new Uint16Array(indices)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>return trimesh;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>function createCapsuleShape(radius, halfHeight){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Compound: cylinder + 2 spheres</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const comp = new CANNON.Body({ mass: 80, material: defaultMat, fixedRotation: true });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const cyl = new CANNON.Cylinder(radius, radius, halfHeight*2, 12);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const q = new CANNON.Quaternion();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>q.setFromEuler(Math.PI/2, 0, 0); // x-axis to stand upright</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>comp.addShape(cyl, new CANNON.Vec3(0,0,0), q);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const spTop = new CANNON.Sphere(radius);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const spBot = new CANNON.Sphere(radius);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>comp.addShape(spTop, new CANNON.Vec3(0, halfHeight, 0));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>comp.addShape(spBot, new CANNON.Vec3(0,-halfHeight, 0));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>comp.linearDamping = 0.01;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>return comp;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>function createPlayer(){</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const radius = 0.4, height = 1.7;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const halfHeight = (height/2 - radius);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const body = createCapsuleShape(radius, halfHeight);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>body.position.set(0, height*0.6, 0); // start above ground</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>body.allowSleep = false;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Visual: low-poly robot capsule</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const group = new THREE.Group();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 0.9, 6, 12), MAT.player);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>torso.position.set(0, 0.95, 0);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 12), MAT.playerHead);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>head.position.set(0, 1.8, 0);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,0.02), new THREE.MeshBasicMaterial({ color:0xffffff }));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const eyeR = eyeL.clone();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>eyeL.position.set(-0.09, 1.85, 0.25); eyeR.position.set(0.09, 1.85, 0.25);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>group.add(torso, head, eyeL, eyeR);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>return { body, mesh: group, halfHeight };</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>// Prevent arrow keys from scrolling page</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>window.addEventListener('keydown', (e)=&gt;{</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const prevent = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (prevent) e.preventDefault();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}, { passive:false });</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1">&lt;/body&gt;</span></p>
+<p class="p1"><span class="s1">&lt;/html&gt;</span></p>
+</body>
+</html>
